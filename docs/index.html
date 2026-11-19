@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentTask — Microtask Escrow for Agent ID Holders</title>
+<style>
+  :root { --bg:#0f0f12; --card:#1a1a20; --text:#f0f0f0; --muted:#9a9aa5; --accent:#f0b90b; --green:#2ebd85; --red:#f6465d; --line:#2a2a33; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  header { max-width:960px; margin:0 auto; padding:24px 16px 8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+  h1 { margin:0; font-size:24px; }
+  h1 span { color:var(--accent); }
+  main { max-width:960px; margin:0 auto; padding:8px 16px 48px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:12px 0; }
+  .muted { color:var(--muted); font-size:14px; }
+  .badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:13px; font-weight:600; }
+  .badge.holder { background:#123b2c; color:var(--green); }
+  .badge.noholder { background:#3b1218; color:var(--red); }
+  .badge.status-0 { background:#2a2a33; color:#fff; }
+  .badge.status-1 { background:#33270a; color:var(--accent); }
+  .badge.status-2 { background:#0a2a3d; color:#4db8ff; }
+  .badge.status-3 { background:#123b2c; color:var(--green); }
+  .badge.status-4, .badge.status-5 { background:#3b1218; color:var(--red); }
+  button { background:var(--accent); color:#111; border:0; border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; margin:4px 4px 0 0; }
+  button.secondary { background:#2a2a33; color:#fff; }
+  button.danger { background:#3b1218; color:var(--red); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  input, textarea, select { width:100%; background:#0f0f12; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 10px; margin:4px 0 10px; font-size:15px; }
+  label { font-size:13px; color:var(--muted); }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:160px; }
+  #status { white-space:pre-wrap; font-size:14px; }
+  .task-head { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; flex-wrap:wrap; }
+  .task-head h3 { margin:0; }
+  a { color:var(--accent); }
+  .banner { background:#33270a; border:1px solid #5a4510; color:#ffd970; border-radius:12px; padding:12px 16px; margin:12px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent<span>Task</span></h1>
+  <div>
+    <span id="account" class="muted">Not connected</span>
+    <button id="connectBtn">Connect Wallet</button>
+  </div>
+</header>
+<main>
+  <p class="muted">Microtask escrow for Binance Agent ID holders. Anyone can post a task with BNB locked in escrow. Only Agent ID holders can accept and do the work. Payment releases when the poster approves; timeouts protect both sides. No fees, no owner, no admin — the contract is immutable and open-source.</p>
+
+  <div id="deployBanner" class="banner" style="display:none">
+    Contract not deployed yet — the board is read-only until the AgentTaskEscrow contract is live on BNB Chain.
+  </div>
+
+  <div class="card">
+    <div id="holderBadge"><span class="badge noholder">Connect your wallet to check Agent ID</span></div>
+    <p class="muted" id="netInfo">Network: —</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">Post a task</h2>
+    <label>Title</label>
+    <input id="fTitle" maxlength="120" placeholder="e.g. Fix the landing page typo">
+    <label>Description</label>
+    <textarea id="fDesc" rows="3" maxlength="1000" placeholder="What needs doing, links, acceptance criteria…"></textarea>
+    <div class="row">
+      <div>
+        <label>Reward (BNB)</label>
+        <input id="fReward" type="number" min="0.0001" step="0.0001" placeholder="0.01">
+      </div>
+      <div>
+        <label>Deadline</label>
+        <select id="fDays">
+          <option value="1">1 day</option>
+          <option value="3">3 days</option>
+          <option value="7" selected>7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">30 days (max)</option>
+        </select>
+      </div>
+    </div>
+    <button id="postBtn">Post task (locks reward in escrow)</button>
+    <p class="muted">Your wallet will ask you to confirm. The reward is locked in the contract until the work is approved — or refunded to you if the task expires unaccepted or you cancel it while it is still open.</p>
+  </div>
+
+  <h2>Tasks</h2>
+  <div id="taskList"><p class="muted">Loading…</p></div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Status</h3>
+    <div id="status" class="muted">Idle.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">How it works</h3>
+    <ol class="muted">
+      <li>Poster locks BNB in escrow when posting a task (deadline max 30 days).</li>
+      <li>An Agent ID holder accepts the task. The poster cannot accept their own task.</li>
+      <li>The worker submits proof (text or a link). The poster approves (payment releases) or rejects (worker can resubmit before the deadline).</li>
+      <li>Timeouts: if no work is submitted by the deadline, the poster reclaims the reward. If the poster stays silent for 3 days after submission, the worker can claim the reward.</li>
+      <li>Every step is a transaction you confirm in your own wallet. No logins, no keys, no server.</li>
+    </ol>
+    <p class="muted">Contract: <span id="contractAddr">—</span> · <a id="contractLink" href="#" target="_blank" rel="noopener">View on BscScan</a></p>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

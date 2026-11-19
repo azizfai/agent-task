@@ -1,7 +1,7 @@
 // AgentTask frontend — static, no backend, no keys collected.
 // Every asset action is a transaction the user confirms in their own wallet.
 // Fill in CONTRACT_ADDRESS after the contract is deployed on BNB Chain.
-const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: deployed address
+const CONTRACT_ADDRESS = "0x5f1F8AEA183b4a36ec420d1b25A7808De5aFCD6d"; // TODO: deployed address
 const BSC_CHAIN_ID = 56;
 const BSC_RPC = "https://bsc-dataseed.binance.org/";
 const BSCSCAN = "https://bscscan.com";

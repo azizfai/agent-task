@@ -1,3 +1,8 @@
 out/
 cache/
 node_modules/
+
+deployer.json
+broadcast/
+cache/
+out/
